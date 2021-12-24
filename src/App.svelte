@@ -1,65 +1,117 @@
 <script lang="ts">
-  import logo from './assets/svelte.png'
-  import Counter from './lib/Counter.svelte'
+  import { directoryOpen } from 'browser-fs-access'
+  import JSONFormatter from 'json-formatter-js'
+	import sortPaths from 'sort-paths/sort-paths'
+  import Icon from '@iconify/svelte';
+  import CopyToClipboard from "svelte-copy-to-clipboard";
+  import delay from "./utils/delay";
+
+	let isLoading, jsonContainer, jsonText
+	let finishedParsing, showCopySuccess = false
+
+  const onClickOpen = async (e) => {
+    isLoading = true
+    const blobsInDirectory = await directoryOpen({
+      recursive: true,
+    });
+		const paths = blobsInDirectory.map(e => e.webkitRelativePath)
+    parseFilePaths(paths)
+  }
+
+  const parseFilePaths = (paths: String[]) => {
+		const sortedPaths = sortPaths(paths, '/');
+    let json = {};
+    sortedPaths.forEach(path => {
+      let levels = path.split("/");
+      let file = levels.pop();
+
+      levels.reduce((prev, lvl, i) => {
+        return prev[lvl] = (levels.length - i - 1) ? prev[lvl] || {} : (prev[lvl] || [])?.concat([file]);
+      }, json);
+    });
+    jsonText = JSON.stringify(json)
+    setupFormattedJSON(json)
+  }
+
+  const setupFormattedJSON = (json) => {
+    const formatter = new JSONFormatter(json, 10, {
+      theme: 'dark',
+      animateOpen: true,
+      animateClose: true,
+      useToJSON: true
+    });
+
+    jsonContainer.appendChild(formatter.render());
+    isLoading = false
+    finishedParsing = true
+  }
+
+  const reset = () => {
+		jsonText = null;
+    isLoading = false
+    finishedParsing = false
+    showCopySuccess = false
+    jsonContainer.removeChild(jsonContainer.firstChild)
+  }
+
+  const onCopy = async () => {
+    showCopySuccess = true
+    await delay(1000)
+    showCopySuccess = false
+  }
 </script>
 
 <main>
-  <img src={logo} alt="Svelte Logo" />
-  <h1>Hello Typescript!</h1>
-
-  <Counter />
-
-  <p>
-    Visit <a href="https://svelte.dev">svelte.dev</a> to learn how to build Svelte
-    apps.
-  </p>
-
-  <p>
-    Check out <a href="https://github.com/sveltejs/kit#readme">SvelteKit</a> for
-    the officially supported framework, also powered by Vite!
-  </p>
+	{#if !finishedParsing}
+		<div class="f2j-open">
+			<h2>folder2json <Icon icon="cil:folder-open" inline={true} /> <Icon icon="akar-icons:arrow-right" inline={true} />  <Icon icon="mdi:code-json" inline={true} /></h2>
+			{#if isLoading}
+				<div class="f2j-open__loading">
+					Loading <Icon icon="eos-icons:loading" inline={true} />
+				</div>
+			{/if}
+			<button on:click={onClickOpen}>Open a Folder</button>
+		</div>
+	{/if}
+	{#if finishedParsing}
+		<div class="f2j-json-actions">
+			<CopyToClipboard text={jsonText} on:copy={onCopy} on:fail={() => alert('Failed to copy!')} let:copy>
+				<button on:click={copy}>
+					Copy JSON
+					{#if showCopySuccess}
+						<Icon icon="bi:check-lg" inline={true} />
+					{/if}
+				</button>
+			</CopyToClipboard>
+			<button on:click={reset}>Reset</button>
+		</div>
+	{/if}
+	<div class="f2j-json-container" bind:this={jsonContainer}></div>
 </main>
 
 <style>
-  :root {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  }
+	.f2j-open {
+		display: grid;
+		place-content: center;
+		height: 90vh;
+	}
 
-  main {
+	.f2j-open h2, .f2j-open__loading {
+		color: #fff;
     text-align: center;
-    padding: 1em;
-    margin: 0 auto;
   }
 
-  img {
-    height: 16rem;
-    width: 16rem;
-  }
+  .f2j-open__loading {
+		margin-bottom: 24px;
+	}
 
-  h1 {
-    color: #ff3e00;
-    text-transform: uppercase;
-    font-size: 4rem;
-    font-weight: 100;
-    line-height: 1.1;
-    margin: 2rem auto;
-    max-width: 14rem;
-  }
+	.f2j-json-container {
+		margin: 30px;
+	}
 
-  p {
-    max-width: 14rem;
-    margin: 1rem auto;
-    line-height: 1.35;
-  }
-
-  @media (min-width: 480px) {
-    h1 {
-      max-width: none;
-    }
-
-    p {
-      max-width: none;
-    }
-  }
+	.f2j-json-actions {
+		position: absolute;
+		right: 30px;
+		top: 30px;
+	}
 </style>
