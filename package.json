@@ -2,11 +2,13 @@
   "name": "folder2json",
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://x8bitrain.github.io/folder2json",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "deploy": "gh-pages -t true -d dist"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.30",
