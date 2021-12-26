@@ -6,7 +6,7 @@
   import CopyToClipboard from "svelte-copy-to-clipboard";
   import delay from "./utils/delay";
 
-	let isLoading, jsonContainer, jsonText
+	let isLoading, jsonContainer, json, dirList
 	let finishedParsing, showCopySuccess = false
 
   const onClickOpen = async (e) => {
@@ -20,7 +20,8 @@
 
   const parseFilePaths = (paths: String[]) => {
 		const sortedPaths = sortPaths(paths, '/');
-    let json = {};
+    dirList = sortedPaths.join('\n')
+    json = {};
     sortedPaths.forEach(path => {
       let levels = path.split("/");
       let file = levels.pop();
@@ -29,8 +30,8 @@
         return prev[lvl] = (levels.length - i - 1) ? prev[lvl] || {} : (prev[lvl] || [])?.concat([file]);
       }, json);
     });
-    jsonText = JSON.stringify(json)
     setupFormattedJSON(json)
+    logJson()
   }
 
   const setupFormattedJSON = (json) => {
@@ -46,8 +47,16 @@
     finishedParsing = true
   }
 
+  const logJson = () => {
+    console.log(
+      `%cfolder2json:`,
+      'background: unset; color: white; font-weight: bold; font-size: 1.5em;'
+    )
+		console.log(json)
+	}
+
   const reset = () => {
-		jsonText = null;
+		json = null;
     isLoading = false
     finishedParsing = false
     showCopySuccess = false
@@ -75,9 +84,10 @@
 	{/if}
 	{#if finishedParsing}
 		<div class="f2j-json-actions">
-			<CopyToClipboard text={jsonText} on:copy={onCopy} on:fail={() => alert('Failed to copy!')} let:copy>
+			<p>json object output in browser console</p>
+			<CopyToClipboard text={dirList} on:copy={onCopy} on:fail={() => alert('Failed to copy!')} let:copy>
 				<button on:click={copy}>
-					Copy JSON
+					Copy dir list
 					{#if showCopySuccess}
 						<Icon icon="bi:check-lg" inline={true} />
 					{/if}
@@ -87,6 +97,13 @@
 		</div>
 	{/if}
 	<div class="f2j-json-container" bind:this={jsonContainer}></div>
+	{#if finishedParsing}
+		<div class="f2j-dir-list">
+			<textarea readonly>
+				{dirList}
+			</textarea>
+		</div>
+	{/if}
 </main>
 
 <style>
@@ -113,5 +130,21 @@
 		position: absolute;
 		right: 30px;
 		top: 30px;
+	}
+
+	.f2j-json-actions p {
+		color: #fff;
+	}
+
+	.f2j-dir-list {
+		margin: 30px;
+	}
+
+	.f2j-dir-list textarea {
+		width: 100%;
+		height: 500px;
+		color: #fff;
+		border-radius: 4px;
+		background-color: #2c2c2c;
 	}
 </style>
