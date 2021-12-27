@@ -1,13 +1,18 @@
 <script lang="ts">
   import { directoryOpen } from 'browser-fs-access'
-  import JSONFormatter from 'json-formatter-js'
 	import sortPaths from 'sort-paths/sort-paths'
   import Icon from '@iconify/svelte';
   import CopyToClipboard from "svelte-copy-to-clipboard";
   import delay from "./utils/delay";
+  import { JSONEditor } from 'svelte-jsoneditor'
 
-	let isLoading, jsonContainer, json, dirList
+	let isLoading, jsonData, dirList
 	let finishedParsing, showCopySuccess = false
+
+  let content = {
+    json: {},
+    mode: 'code',
+  }
 
   const onClickOpen = async (e) => {
     isLoading = true
@@ -20,29 +25,29 @@
 
   const parseFilePaths = (paths: String[]) => {
 		const sortedPaths = sortPaths(paths, '/');
+    let result = [];
+    let level = { result };
     dirList = sortedPaths.join('\n')
-    json = {};
-    sortedPaths.forEach(path => {
-      let levels = path.split("/");
-      let file = levels.pop();
 
-      levels.reduce((prev, lvl, i) => {
-        return prev[lvl] = (levels.length - i - 1) ? prev[lvl] || {} : (prev[lvl] || [])?.concat([file]);
-      }, json);
-    });
-    setupFormattedJSON(json)
+    paths.forEach(path => {
+      path.split('/').reduce((r, name, i, a) => {
+        if(!r[name]) {
+          r[name] = {result: []};
+          r.result.push({name, children: r[name].result})
+        }
+
+        return r[name];
+      }, level)
+    })
+
+    jsonData = result
+    console.log(result);
+    content.json = result
+    setupFormattedJSON(jsonData)
     logJson()
   }
 
   const setupFormattedJSON = (json) => {
-    const formatter = new JSONFormatter(json, 10, {
-      theme: 'dark',
-      animateOpen: true,
-      animateClose: true,
-      useToJSON: true
-    });
-
-    jsonContainer.appendChild(formatter.render());
     isLoading = false
     finishedParsing = true
   }
@@ -52,15 +57,14 @@
       `%cfolder2json:`,
       'background: unset; color: white; font-weight: bold; font-size: 1.5em;'
     )
-		console.log(json)
+		console.log(jsonData)
 	}
 
   const reset = () => {
-		json = null;
+    jsonData = null;
     isLoading = false
     finishedParsing = false
     showCopySuccess = false
-    jsonContainer.removeChild(jsonContainer.firstChild)
   }
 
   const onCopy = async () => {
@@ -82,9 +86,9 @@
 			<button on:click={onClickOpen}>Open a Folder</button>
 		</div>
 	{/if}
+
 	{#if finishedParsing}
 		<div class="f2j-json-actions">
-			<p>json object output in browser console</p>
 			<CopyToClipboard text={dirList} on:copy={onCopy} on:fail={() => alert('Failed to copy!')} let:copy>
 				<button on:click={copy}>
 					Copy dir list
@@ -96,9 +100,14 @@
 			<button on:click={reset}>Reset</button>
 		</div>
 	{/if}
-	<div class="f2j-json-container" bind:this={jsonContainer}></div>
+
 	{#if finishedParsing}
+		<div class="f2j-json-container">
+			<h3>json editor</h3>
+			<JSONEditor {content} mode="code" />
+		</div>
 		<div class="f2j-dir-list">
+			<h3>file path list</h3>
 			<textarea readonly>
 				{dirList}
 			</textarea>
@@ -132,10 +141,6 @@
 		top: 30px;
 	}
 
-	.f2j-json-actions p {
-		color: #fff;
-	}
-
 	.f2j-dir-list {
 		margin: 30px;
 	}
@@ -146,5 +151,6 @@
 		color: #fff;
 		border-radius: 4px;
 		background-color: #2c2c2c;
+		border-color: #0090eb;
 	}
 </style>
