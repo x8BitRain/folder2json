@@ -6,15 +6,20 @@
   import delay from "./utils/delay";
   import { JSONEditor } from 'svelte-jsoneditor'
 
-	let isLoading, jsonData, dirList
-	let finishedParsing, showCopySuccess = false
+	let isLoading, dirList
+	let finishedParsing = false
 
   let content = {
     json: {},
     mode: 'code',
   }
 
-  const onClickOpen = async (e) => {
+  let showCopySuccess = {
+    list: false,
+		json: false,
+	}
+
+  const onClickOpen = async () => {
     isLoading = true
     const blobsInDirectory = await directoryOpen({
       recursive: true,
@@ -27,82 +32,120 @@
 		const sortedPaths = sortPaths(paths, '/');
     let result = [];
     let level = { result };
-    dirList = sortedPaths.join('\n')
 
-    paths.forEach(path => {
-      path.split('/').reduce((r, name, i, a) => {
-        if(!r[name]) {
+    sortedPaths.forEach(path => {
+      path.split('/').reduce((r, name) => {
+        if (!r[name]) {
           r[name] = {result: []};
-          r.result.push({name, children: r[name].result})
+					r.result.push({name, children: r[name].result})
         }
 
         return r[name];
       }, level)
     })
 
-    jsonData = result
-    console.log(result);
+    dirList = sortedPaths.join('\n')
     content.json = result
-    setupFormattedJSON(jsonData)
-    logJson()
+    logJson(result, dirList)
+    onFinishParsing()
   }
 
-  const setupFormattedJSON = (json) => {
+  const onFinishParsing = () => {
     isLoading = false
     finishedParsing = true
   }
 
-  const logJson = () => {
-    console.log(
-      `%cfolder2json:`,
-      'background: unset; color: white; font-weight: bold; font-size: 1.5em;'
-    )
-		console.log(jsonData)
+  const logJson = (json: Object, dirList: String) => {
+    const style = 'background: unset; color: white; font-weight: bold; font-size: 1.5em;'
+    console.log(`%cfolder2json`, style)
+		console.log('%cPath list:\n ', style, dirList)
+		console.log('%cJSON:\n ', style, json)
 	}
 
   const reset = () => {
-    jsonData = null;
+    dirList = null
+		content.json = {}
     isLoading = false
     finishedParsing = false
-    showCopySuccess = false
   }
 
-  const onCopy = async () => {
-    showCopySuccess = true
+  const onCopy = async (type: 'json' | 'list') => {
+    showCopySuccess[type] = true
     await delay(1000)
-    showCopySuccess = false
+    showCopySuccess[type] = false
+  }
+
+  const onCopyFail = () => {
+    alert('Failed to copy!')
   }
 </script>
 
 <main>
 	{#if !finishedParsing}
 		<div class="f2j-open">
-			<h2>folder2json <Icon icon="cil:folder-open" inline={true} /> <Icon icon="akar-icons:arrow-right" inline={true} />  <Icon icon="mdi:code-json" inline={true} /></h2>
+			<h2>
+				folder2json
+				<Icon icon="cil:folder-open" inline={true} />
+				<Icon icon="akar-icons:arrow-right" inline={true} />
+				<Icon icon="mdi:code-json" inline={true} />
+			</h2>
 			{#if isLoading}
 				<div class="f2j-open__loading">
 					Loading <Icon icon="eos-icons:loading" inline={true} />
 				</div>
 			{/if}
-			<button on:click={onClickOpen}>Open a Folder</button>
+			{#if !isLoading}
+				<button on:click={onClickOpen}>Open a Folder</button>
+			{/if}
+			<a class="f2j-github-link" href="https://github.com/x8BitRain/folder2json">
+				Github
+				<Icon icon="akar-icons:github-fill" inline={true} />
+			</a>
 		</div>
 	{/if}
 
 	{#if finishedParsing}
 		<div class="f2j-json-actions">
-			<CopyToClipboard text={dirList} on:copy={onCopy} on:fail={() => alert('Failed to copy!')} let:copy>
+			<CopyToClipboard
+				text={JSON.stringify(content.json)}
+				on:copy={() => onCopy('json')}
+				on:fail={onCopyFail}
+				let:copy
+			>
 				<button on:click={copy}>
-					Copy dir list
-					{#if showCopySuccess}
+					copy json
+					{#if showCopySuccess.json}
 						<Icon icon="bi:check-lg" inline={true} />
 					{/if}
 				</button>
 			</CopyToClipboard>
-			<button on:click={reset}>Reset</button>
+
+			<CopyToClipboard
+				text={dirList}
+				on:copy={() => onCopy('list')}
+				on:fail={onCopyFail}
+				let:copy
+			>
+				<button on:click={copy}>
+					copy dir list
+					{#if showCopySuccess.list}
+						<Icon icon="bi:check-lg" inline={true} />
+					{/if}
+				</button>
+			</CopyToClipboard>
+
+			<button on:click={reset}>reset</button>
 		</div>
 	{/if}
 
 	{#if finishedParsing}
 		<div class="f2j-json-container">
+			<h2>
+				folder2json
+				<Icon icon="cil:folder-open" inline={true} />
+				<Icon icon="akar-icons:arrow-right" inline={true} />
+				<Icon icon="mdi:code-json" inline={true} />
+			</h2>
 			<h3>json editor</h3>
 			<JSONEditor {content} mode="code" />
 		</div>
@@ -111,6 +154,13 @@
 			<textarea readonly>
 				{dirList}
 			</textarea>
+			<br/>
+			<br/>
+			<br/>
+			<a class="f2j-github-link" href="https://github.com/x8BitRain/folder2json">
+				Github
+				<Icon icon="akar-icons:github-fill" inline={true} />
+			</a>
 		</div>
 	{/if}
 </main>
@@ -120,6 +170,16 @@
 		display: grid;
 		place-content: center;
 		height: 90vh;
+	}
+
+	.f2j-open .f2j-github-link {
+    position: absolute;
+		bottom: 16px;
+		left: 16px;
+	}
+
+	.f2j-github-link, .f2j-open > .f2j-github-link {
+		color: deepskyblue;
 	}
 
 	.f2j-open h2, .f2j-open__loading {
@@ -141,6 +201,25 @@
 		top: 30px;
 	}
 
+  @media only screen and (max-width: 600px) {
+    .f2j-json-actions {
+      position: fixed;
+      right: 30px;
+      bottom: 30px;
+			top: unset;
+      z-index: 10;
+    }
+  }
+
+	.f2j-open button, .f2j-json-actions button{
+    color: #fff;
+    border: 0;
+    border-radius: 4px;
+    padding: 8px;
+    background-color: #008ee7;
+    cursor: pointer;
+	}
+
 	.f2j-dir-list {
 		margin: 30px;
 	}
@@ -150,7 +229,7 @@
 		height: 500px;
 		color: #fff;
 		border-radius: 4px;
-		background-color: #2c2c2c;
+		background-color: #000;
 		border-color: #0090eb;
 	}
 </style>
