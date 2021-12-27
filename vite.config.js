@@ -5,6 +5,7 @@ import { viteOptimizeDeps } from 'svelte-jsoneditor/config'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [svelte()],
+	base: '/folder2json/',
 	optimizeDeps: {
 		include: [
 			'diff-sequences',
