@@ -1,5 +1,5 @@
 * {
-  font-family: 'B612 Mono', monospace;
+  font-family: "B612 Mono", monospace;
 }
 
 body {
@@ -7,13 +7,12 @@ body {
   margin: 0;
 }
 
-h3, h2 {
+h3,
+h2 {
   color: #fff !important;
 }
 
 .jsoneditor-main {
   height: 80vh !important;
-  filter: invert(1) hue-rotate(
-          165deg
-  );
+  filter: invert(1) hue-rotate(165deg);
 }
